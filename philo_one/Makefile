@@ -1,12 +1,16 @@
 NAME=philo_one
 
+SRC=philo_one.c utils.c
+
 all: $(NAME)
 
+CC=clang
+FLAGS=-Wall -Werror -Wextra
 $(NAME):
-	gcc philo_one.c -lpthread -o $(NAME)
+	@$(CC) $(FLAGS) $(SRC) -lpthread -o $(NAME)
 
 clean:
-	rm -rf $(NAME)
+	@rm -rf $(NAME)
 
 fclean: clean
 
