@@ -1,16 +1,16 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   philo_one.c                                        :+:      :+:    :+:   */
+/*   philo_two.c                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: ojoubout <ojoubout@student.1337.ma>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/01/01 18:20:44 by ojoubout          #+#    #+#             */
-/*   Updated: 2021/01/16 15:28:51 by ojoubout         ###   ########.fr       */
+/*   Updated: 2021/01/16 18:13:18 by ojoubout         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "philo_one.h"
+#include "philo_two.h"
 
 int	g_turn = 0;
 
@@ -25,31 +25,17 @@ void    ft_think(t_philo *philo)
 {
     philo->stat = THINKING;
 	ft_print_status(philo);
-	// while (g_turn == 0 && (forks[philo->id - 1] || forks[philo->id % nb_of_philos]));
+    sem_wait(one_at_time);
 }
 
 void    ft_take_forks(t_philo *philo)
 {
-    pthread_mutex_unlock(&mutex);
 
-	// if (forks[philo->id - 1] || forks[philo->id % nb_of_philos])
-	// {
-    // 	pthread_mutex_lock(&mutex);
-    // 	pthread_mutex_unlock(&mutex);
-	// }
-
-	// while (forks[philo->id - -1] || forks_mutex[philo->id % nb_of_philos])
-	// {
-	// }
-	pthread_mutex_lock(&forks_mutex[philo->id - 1]);
-	forks[philo->id - 1] = true;
-	pthread_mutex_lock(&forks_mutex[philo->id % nb_of_philos]);
-	forks[philo->id % nb_of_philos] = true;
+	sem_wait(forks_sem);
+	sem_wait(forks_sem);
 	philo->stat = TAKE_FORKS;
 	ft_print_status(philo);
-    // pthread_mutex_unlock(&mutex);
-
-
+    sem_post(one_at_time);
 }
 
 void    ft_eat(t_philo *philo)
@@ -65,13 +51,8 @@ void    ft_put_forks(t_philo *philo)
 {
 	philo->stat = PUTS_FORKS;
 	ft_print_status(philo);
-    pthread_mutex_unlock(&forks_mutex[philo->id - 1]);
-    forks[philo->id - 1] = false;
-
-    pthread_mutex_unlock(&forks_mutex[philo->id % nb_of_philos]);
-    forks[philo->id % nb_of_philos] = false;
-
-
+	sem_post(forks_sem);
+	sem_post(forks_sem);
 
 }
 
@@ -87,7 +68,6 @@ void    *philosophers(void *ptr)
     t_philo *philo;
 
     philo = ptr;
-    pthread_mutex_lock(&mutex);
     while (g_nb_of_eat == -1 || philo->nb_of_eat < g_nb_of_eat)
     {
         ft_think(philo);
@@ -97,7 +77,7 @@ void    *philosophers(void *ptr)
         ft_sleep(philo);
     }
 	philo->stat = DONE;
-    pthread_mutex_unlock(&mutex);
+    // sem_post(&one_at_time);
     return (NULL);
 }
 
@@ -105,30 +85,22 @@ int    init()
 {
     int i;
 
-    // nb_of_philos = 2;
-    // time_to_die = 4010 * 1000;
-    // time_to_eat = 2000 * 1000;
-    // time_to_sleep = 4000 * 1000;
-    // g_nb_of_eat = 0;
-    if (pthread_mutex_init(&mutex, NULL) ||
-    pthread_mutex_init(&die_mutex, NULL) ||
-    pthread_mutex_init(&print_mutex, NULL))
-        return (ft_error("mutex init failed!"));
-    // printf("size of bool: %lu\n", sizeof(bool));
-    if (!(g_philos = malloc(sizeof(t_philo) * nb_of_philos)) ||
-        !(forks = malloc(sizeof(bool) * nb_of_philos)) ||
-        !(forks_mutex = malloc(sizeof(pthread_mutex_t) * nb_of_philos)))
+
+    if (!(g_philos = malloc(sizeof(t_philo) * nb_of_philos)))
         return (ft_error("malloc failed!"));
     i = 0;
-	ft_bzero(forks, sizeof(bool) * nb_of_philos);
+	sem_unlink("forks_sem");
+	sem_unlink("one_at_time");
+	sem_unlink("print_sem");
+    if ((forks_sem = sem_open("forks_sem", O_CREAT, S_IRWXG, nb_of_philos)) == SEM_FAILED ||
+	(one_at_time = sem_open("one_at_time", O_CREAT, S_IRWXG, 1)) == SEM_FAILED ||
+	(print_sem = sem_open("print_sem", O_CREAT, S_IRWXG, 1)) == SEM_FAILED)
+    {
+        return (ft_error("failed to open semaphore"));
+    }
 
-	// i++;
-	while (i < nb_of_philos)
-		if (pthread_mutex_init(&forks_mutex[i++], NULL))
-			return (ft_error("mutex init failed!"));
 	i = 0;
 	g_start_time = get_time_stamp();
-    pthread_mutex_lock(&mutex);
     while (i < nb_of_philos)
     {
         g_philos[i].id = i + 1;
@@ -137,18 +109,13 @@ int    init()
         g_philos[i].last_eat = g_start_time;
         if (pthread_create(&g_philos[i].thread, NULL, philosophers, &g_philos[i]))
             return (ft_error("pthread_create failed!"));
-		usleep(100);
         i++;
-    }    
-    pthread_mutex_unlock(&mutex);
-
+    }
     return (EXIT_SUCCESS);
 }
 
 int    run()
 {
-    // pthread_mutex_lock(&die_mutex);
-    // pthread_mutex_lock(&die_mutex);
 	int	i;
 	int	done_philos;
 
@@ -173,16 +140,16 @@ int    run()
 			i++;
 		}
 	}
-	pthread_mutex_lock(&print_mutex);
+	sem_wait(print_sem);
     return (EXIT_SUCCESS);
 }
 
 int    finalize()
 {
+	sem_unlink("forks_sem");
+	sem_unlink("one_at_time");
+	sem_unlink("print_sem");
 	free(g_philos);
-	free(forks);
-	free(forks_mutex);
-	// pthread_mutex_unlock(&print_mutex);
     return (EXIT_SUCCESS);
 }
 

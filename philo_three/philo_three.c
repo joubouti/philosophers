@@ -1,16 +1,16 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   philo_one.c                                        :+:      :+:    :+:   */
+/*   philo_three.c                                      :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: ojoubout <ojoubout@student.1337.ma>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/01/01 18:20:44 by ojoubout          #+#    #+#             */
-/*   Updated: 2021/01/16 15:28:51 by ojoubout         ###   ########.fr       */
+/*   Updated: 2021/01/16 19:17:17 by ojoubout         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "philo_one.h"
+#include "philo_three.h"
 
 int	g_turn = 0;
 
@@ -21,35 +21,43 @@ int ft_error(char *err)
     return (EXIT_FAILURE);
 }
 
+void	*ft_check_die(void *ptr)
+{
+    t_philo *philo;
+	micro_second_t mc;
+    philo = ptr;
+	while (philo->stat != DONE)
+	{
+		mc = get_time_stamp();
+		if ((mc - philo->last_eat > time_to_die) && philo->stat != EATING)
+		{
+			// printf(" %lu %lu %lu %lu %d\n", mc, philo->last_eat, mc - philo->last_eat, time_to_die, mc - philo->last_eat > time_to_die);
+			
+			// char c = g_philos[i].stat + 48;
+			// write(1, &c, 1);
+			philo->stat = DIED;
+			ft_print_status(philo);
+			exit(2);
+		}
+	}
+	return (NULL);
+}
+
 void    ft_think(t_philo *philo)
 {
     philo->stat = THINKING;
 	ft_print_status(philo);
-	// while (g_turn == 0 && (forks[philo->id - 1] || forks[philo->id % nb_of_philos]));
+    sem_wait(one_at_time);
 }
 
 void    ft_take_forks(t_philo *philo)
 {
-    pthread_mutex_unlock(&mutex);
 
-	// if (forks[philo->id - 1] || forks[philo->id % nb_of_philos])
-	// {
-    // 	pthread_mutex_lock(&mutex);
-    // 	pthread_mutex_unlock(&mutex);
-	// }
-
-	// while (forks[philo->id - -1] || forks_mutex[philo->id % nb_of_philos])
-	// {
-	// }
-	pthread_mutex_lock(&forks_mutex[philo->id - 1]);
-	forks[philo->id - 1] = true;
-	pthread_mutex_lock(&forks_mutex[philo->id % nb_of_philos]);
-	forks[philo->id % nb_of_philos] = true;
+	sem_wait(forks_sem);
+	sem_wait(forks_sem);
 	philo->stat = TAKE_FORKS;
 	ft_print_status(philo);
-    // pthread_mutex_unlock(&mutex);
-
-
+    sem_post(one_at_time);
 }
 
 void    ft_eat(t_philo *philo)
@@ -65,13 +73,8 @@ void    ft_put_forks(t_philo *philo)
 {
 	philo->stat = PUTS_FORKS;
 	ft_print_status(philo);
-    pthread_mutex_unlock(&forks_mutex[philo->id - 1]);
-    forks[philo->id - 1] = false;
-
-    pthread_mutex_unlock(&forks_mutex[philo->id % nb_of_philos]);
-    forks[philo->id % nb_of_philos] = false;
-
-
+	sem_post(forks_sem);
+	sem_post(forks_sem);
 
 }
 
@@ -82,12 +85,13 @@ void    ft_sleep(t_philo *philo)
 	usleep(time_to_sleep);
 }
 
-void    *philosophers(void *ptr)
+void	philosophers(void *ptr)
 {
     t_philo *philo;
 
     philo = ptr;
-    pthread_mutex_lock(&mutex);
+	if (pthread_create(&philo->thread, NULL, ft_check_die, philo))
+		exit(ft_error("pthread_create failed!"));
     while (g_nb_of_eat == -1 || philo->nb_of_eat < g_nb_of_eat)
     {
         ft_think(philo);
@@ -97,92 +101,73 @@ void    *philosophers(void *ptr)
         ft_sleep(philo);
     }
 	philo->stat = DONE;
-    pthread_mutex_unlock(&mutex);
-    return (NULL);
+	exit(EXIT_SUCCESS);
 }
 
 int    init()
 {
     int i;
 
-    // nb_of_philos = 2;
-    // time_to_die = 4010 * 1000;
-    // time_to_eat = 2000 * 1000;
-    // time_to_sleep = 4000 * 1000;
-    // g_nb_of_eat = 0;
-    if (pthread_mutex_init(&mutex, NULL) ||
-    pthread_mutex_init(&die_mutex, NULL) ||
-    pthread_mutex_init(&print_mutex, NULL))
-        return (ft_error("mutex init failed!"));
-    // printf("size of bool: %lu\n", sizeof(bool));
-    if (!(g_philos = malloc(sizeof(t_philo) * nb_of_philos)) ||
-        !(forks = malloc(sizeof(bool) * nb_of_philos)) ||
-        !(forks_mutex = malloc(sizeof(pthread_mutex_t) * nb_of_philos)))
+    if (!(g_philos = malloc(sizeof(t_philo) * nb_of_philos)))
         return (ft_error("malloc failed!"));
     i = 0;
-	ft_bzero(forks, sizeof(bool) * nb_of_philos);
+	sem_unlink("forks_sem");
+	sem_unlink("one_at_time");
+	sem_unlink("print_sem");
+    if ((forks_sem = sem_open("forks_sem", O_CREAT, S_IRWXG, nb_of_philos)) == SEM_FAILED ||
+	(one_at_time = sem_open("one_at_time", O_CREAT, S_IRWXG, 1)) == SEM_FAILED ||
+	(print_sem = sem_open("print_sem", O_CREAT, S_IRWXG, 1)) == SEM_FAILED)
+    {
+        return (ft_error("failed to open semaphore"));
+    }
 
-	// i++;
-	while (i < nb_of_philos)
-		if (pthread_mutex_init(&forks_mutex[i++], NULL))
-			return (ft_error("mutex init failed!"));
 	i = 0;
 	g_start_time = get_time_stamp();
-    pthread_mutex_lock(&mutex);
+	printf("%lu\n", g_start_time);
     while (i < nb_of_philos)
     {
         g_philos[i].id = i + 1;
         g_philos[i].stat = -1;
 		g_philos[i].nb_of_eat = 0;
         g_philos[i].last_eat = g_start_time;
-        if (pthread_create(&g_philos[i].thread, NULL, philosophers, &g_philos[i]))
-            return (ft_error("pthread_create failed!"));
-		usleep(100);
+		if ((g_philos[i].pid = fork()) == 0)
+			philosophers(&g_philos[i]);
+		else if (g_philos[i].pid < 0)
+            return (ft_error("fork failed!"));
+        // if (pthread_create(&g_philos[i].thread, NULL, philosophers, &g_philos[i]))
+        //     return (ft_error("pthread_create failed!"));
         i++;
-    }    
-    pthread_mutex_unlock(&mutex);
-
+    }
     return (EXIT_SUCCESS);
 }
 
 int    run()
 {
-    // pthread_mutex_lock(&die_mutex);
-    // pthread_mutex_lock(&die_mutex);
 	int	i;
-	int	done_philos;
+	int	status;
 
-	done_philos = 0;
-	while (done_philos < nb_of_philos)
+	i = 0;
+	while (i < nb_of_philos)
 	{
-		i = 0;
-		while (i < nb_of_philos)
+		waitpid(-1, &status, 0);
+		if (WEXITSTATUS(status) == 2)
 		{
-			if (g_philos[i].stat == DONE)
-				done_philos++;
-			else if ((get_time_stamp() - g_philos[i].last_eat > time_to_die) && g_philos[i].stat != EATING)
-			{
-				// printf(" %lu %lu %lu %lu %d\n", mc, g_philos[i].last_eat, mc - g_philos[i].last_eat, time_to_die, mc - g_philos[i].last_eat > time_to_die);
-				
-				// char c = g_philos[i].stat + 48;
-				// write(1, &c, 1);
-				g_philos[i].stat = DIED;
-				ft_print_status(&g_philos[i]);
-				return (EXIT_SUCCESS);
-			}
-			i++;
+			int i = 0;
+			while (i < nb_of_philos)
+				kill(g_philos[i++].pid, 9);
+			return (EXIT_SUCCESS);
 		}
 	}
-	pthread_mutex_lock(&print_mutex);
+
     return (EXIT_SUCCESS);
 }
 
 int    finalize()
 {
+	sem_unlink("forks_sem");
+	sem_unlink("one_at_time");
+	sem_unlink("print_sem");
 	free(g_philos);
-	free(forks);
-	free(forks_mutex);
-	// pthread_mutex_unlock(&print_mutex);
     return (EXIT_SUCCESS);
 }
 
