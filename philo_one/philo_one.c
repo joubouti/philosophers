@@ -6,7 +6,7 @@
 /*   By: ojoubout <ojoubout@student.1337.ma>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/01/01 18:20:44 by ojoubout          #+#    #+#             */
-/*   Updated: 2021/01/16 15:28:51 by ojoubout         ###   ########.fr       */
+/*   Updated: 2021/01/18 16:20:02 by ojoubout         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,9 +21,15 @@ int ft_error(char *err)
     return (EXIT_FAILURE);
 }
 
+void	ft_set_stat(t_philo *philo, int stat)
+{
+	if (philo->stat != DIED)
+		philo->stat = stat;
+}
+
 void    ft_think(t_philo *philo)
 {
-    philo->stat = THINKING;
+    ft_set_stat(philo, THINKING);
 	ft_print_status(philo);
 	// while (g_turn == 0 && (forks[philo->id - 1] || forks[philo->id % nb_of_philos]));
 }
@@ -45,7 +51,7 @@ void    ft_take_forks(t_philo *philo)
 	forks[philo->id - 1] = true;
 	pthread_mutex_lock(&forks_mutex[philo->id % nb_of_philos]);
 	forks[philo->id % nb_of_philos] = true;
-	philo->stat = TAKE_FORKS;
+    ft_set_stat(philo, TAKE_FORKS);
 	ft_print_status(philo);
     // pthread_mutex_unlock(&mutex);
 
@@ -54,16 +60,21 @@ void    ft_take_forks(t_philo *philo)
 
 void    ft_eat(t_philo *philo)
 {
-    philo->stat = EATING;
+	micro_second_t begin;
+
+    ft_set_stat(philo, EATING);
 	philo->nb_of_eat++;
 	ft_print_status(philo);
-	usleep(time_to_eat);
 	philo->last_eat = get_time_stamp();
+	begin = get_time_stamp();
+	usleep(time_to_eat - 20000);
+	while (get_time_stamp() - begin < time_to_eat);
+	// usleep(time_to_eat);
 }
 
 void    ft_put_forks(t_philo *philo)
 {
-	philo->stat = PUTS_FORKS;
+    ft_set_stat(philo, PUTS_FORKS);
 	ft_print_status(philo);
     pthread_mutex_unlock(&forks_mutex[philo->id - 1]);
     forks[philo->id - 1] = false;
@@ -77,9 +88,15 @@ void    ft_put_forks(t_philo *philo)
 
 void    ft_sleep(t_philo *philo)
 {
-    philo->stat = SLEEPING;
+	micro_second_t begin;
+
+    ft_set_stat(philo, SLEEPING);
 	ft_print_status(philo);
-	usleep(time_to_sleep);
+	begin = get_time_stamp();
+	usleep(time_to_sleep - 20000);
+	while (get_time_stamp() - begin < time_to_sleep);
+
+	// usleep(time_to_sleep);
 }
 
 void    *philosophers(void *ptr)
@@ -96,7 +113,7 @@ void    *philosophers(void *ptr)
         ft_put_forks(philo);
         ft_sleep(philo);
     }
-	philo->stat = DONE;
+    ft_set_stat(philo, DONE);
     pthread_mutex_unlock(&mutex);
     return (NULL);
 }
@@ -141,7 +158,7 @@ int    init()
         i++;
     }    
     pthread_mutex_unlock(&mutex);
-
+	// pthread_join(g_philos[0].thread, NULL);
     return (EXIT_SUCCESS);
 }
 
@@ -156,6 +173,7 @@ int    run()
 	while (done_philos < nb_of_philos)
 	{
 		i = 0;
+		done_philos = 0;
 		while (i < nb_of_philos)
 		{
 			if (g_philos[i].stat == DONE)
