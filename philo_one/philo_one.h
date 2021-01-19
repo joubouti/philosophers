@@ -6,7 +6,7 @@
 /*   By: ojoubout <ojoubout@student.1337.ma>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/01/01 18:20:51 by ojoubout          #+#    #+#             */
-/*   Updated: 2021/01/16 12:57:00 by ojoubout         ###   ########.fr       */
+/*   Updated: 2021/01/19 12:12:27 by ojoubout         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -53,11 +53,11 @@ micro_second_t	time_to_eat;
 micro_second_t	time_to_sleep;
 int				g_nb_of_eat;
 micro_second_t	g_start_time;
-
+bool			g_stat;
 size_t			ft_strlen(const char *s);
 micro_second_t	get_time_stamp();
 void			ft_print_status(t_philo *philo);
 void			*ft_bzero(void *s, size_t n);
-int			ft_atoi(const char *str);
+int				ft_atoi(const char *str);
 
 #endif

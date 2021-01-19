@@ -6,7 +6,7 @@
 /*   By: ojoubout <ojoubout@student.1337.ma>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/01/01 18:20:44 by ojoubout          #+#    #+#             */
-/*   Updated: 2021/01/18 16:20:02 by ojoubout         ###   ########.fr       */
+/*   Updated: 2021/01/19 15:44:19 by ojoubout         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -60,22 +60,18 @@ void    ft_take_forks(t_philo *philo)
 
 void    ft_eat(t_philo *philo)
 {
-	micro_second_t begin;
-
     ft_set_stat(philo, EATING);
 	philo->nb_of_eat++;
 	ft_print_status(philo);
 	philo->last_eat = get_time_stamp();
-	begin = get_time_stamp();
 	usleep(time_to_eat - 20000);
-	while (get_time_stamp() - begin < time_to_eat);
+	while (get_time_stamp() - philo->last_eat < time_to_eat);
 	// usleep(time_to_eat);
 }
 
 void    ft_put_forks(t_philo *philo)
 {
     ft_set_stat(philo, PUTS_FORKS);
-	ft_print_status(philo);
     pthread_mutex_unlock(&forks_mutex[philo->id - 1]);
     forks[philo->id - 1] = false;
 
@@ -105,7 +101,7 @@ void    *philosophers(void *ptr)
 
     philo = ptr;
     pthread_mutex_lock(&mutex);
-    while (g_nb_of_eat == -1 || philo->nb_of_eat < g_nb_of_eat)
+    while (g_stat && (g_nb_of_eat == -1 || philo->nb_of_eat < g_nb_of_eat))
     {
         ft_think(philo);
         ft_take_forks(philo);
@@ -127,6 +123,7 @@ int    init()
     // time_to_eat = 2000 * 1000;
     // time_to_sleep = 4000 * 1000;
     // g_nb_of_eat = 0;
+	g_stat = true;
     if (pthread_mutex_init(&mutex, NULL) ||
     pthread_mutex_init(&die_mutex, NULL) ||
     pthread_mutex_init(&print_mutex, NULL))
@@ -184,8 +181,10 @@ int    run()
 				
 				// char c = g_philos[i].stat + 48;
 				// write(1, &c, 1);
+				g_stat = false;
 				g_philos[i].stat = DIED;
 				ft_print_status(&g_philos[i]);
+				// pthread_mutex_lock(&print_mutex);
 				return (EXIT_SUCCESS);
 			}
 			i++;

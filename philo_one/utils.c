@@ -65,16 +65,17 @@ void	*ft_bzero(void *s, size_t n)
 
 void	ft_print_status(t_philo *philo)
 {
-	char	buff[64];
+	char	buff[128];
 	int		pos;
 
 	pos = 0;
-	pthread_mutex_lock(&print_mutex);
-	pthread_mutex_unlock(&print_mutex);
-	// micro_second_t time = get_time_stamp();
+	// ft_bzero(buff, 128);
+	if (!g_stat && philo->stat != DIED)
+		return ;
 	ft_putnbr((get_time_stamp() - g_start_time) / 1000, buff, &pos);
-	ft_putstr(" ", buff, &pos);
+	ft_putstr("\t", buff, &pos);
 	ft_putnbr(philo->id, buff, &pos);
+	ft_putstr("\t", buff, &pos);
 	if (philo->stat == TAKE_FORKS)
 		ft_putstr(" has taken the forks\n", buff, &pos);
 	else if (philo->stat == EATING)
@@ -83,17 +84,13 @@ void	ft_print_status(t_philo *philo)
 		ft_putstr(" is sleeping\n", buff, &pos);
 	else if (philo->stat == THINKING)
 		ft_putstr(" is thinking\n", buff, &pos);
-	else if (philo->stat == PUTS_FORKS)
-		ft_putstr(" has put the forks\n", buff, &pos);
 	else if (philo->stat == DIED)
 	{
-		// write(1, " ", 1);
-		// ft_putnbr(get_time_stamp() - philo->last_eat);
-		// write(1, " ", 1);
-		// ft_putnbr();
 		ft_putstr(" died\n", buff, &pos);
-		pthread_mutex_lock(&print_mutex);
+		philo->stat = -1;
 	}
+
+	pthread_mutex_lock(&print_mutex);
 	write(1, buff, ft_strlen(buff));
-	// pthread_mutex_unlock(&print_mutex);
+	pthread_mutex_unlock(&print_mutex);
 }
