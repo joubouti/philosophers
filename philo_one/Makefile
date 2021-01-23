@@ -1,6 +1,6 @@
 NAME=philo_one
 
-SRC=philo_one.c utils.c utils2.c
+SRC=philo_one.c init.c actions.c utils.c utils2.c
 
 all: $(NAME)
 

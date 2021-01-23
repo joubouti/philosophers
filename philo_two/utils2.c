@@ -6,11 +6,21 @@
 /*   By: ojoubout <ojoubout@student.1337.ma>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/01/16 12:29:17 by ojoubout          #+#    #+#             */
-/*   Updated: 2021/01/16 18:06:41 by ojoubout         ###   ########.fr       */
+/*   Updated: 2021/01/20 18:45:34 by ojoubout         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "philo_two.h"
+
+size_t		ft_strlen(const char *str)
+{
+	int	i;
+
+	i = 0;
+	while (str[i])
+		i++;
+	return (i);
+}
 
 static int	ft_return(long num, int add, int sign)
 {
@@ -22,7 +32,7 @@ static int	ft_return(long num, int add, int sign)
 	return (1);
 }
 
-int	ft_atoi(const char *str)
+int			ft_atoi(const char *str)
 {
 	long long	num;
 	int			i;
@@ -49,4 +59,10 @@ int	ft_atoi(const char *str)
 		i++;
 	}
 	return ((num * neg));
+}
+
+void		ft_set_stat(t_philo *philo, int stat)
+{
+	if (philo->stat != DIED)
+		philo->stat = stat;
 }
